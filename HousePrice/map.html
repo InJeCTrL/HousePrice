@@ -1,0 +1,303 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>二手房每平米房价分布</title>
+    <style>
+        html,
+        body,
+        #container {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+        }
+
+        #lblList {
+            position: absolute;
+            right: 300px;
+            top: 0;
+            padding: 0;
+            margin: 0;
+            z-index: 999;
+            background-color: white;
+        }
+
+        #lblList li {
+            padding: 5px;
+            list-style-type: none;
+        }
+
+        #loadingTip {
+            position: absolute;
+            z-index: 9999;
+            top: 0;
+            right: 0;
+            padding: 3px 10px;
+            background: red;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        #outer-box {
+            height: 100%;
+            padding-right: 300px;
+        }
+
+        #panel {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            height: 100%;
+            overflow: auto;
+            width: 300px;
+            z-index: 999;
+            border-left: 1px solid #eaeaea;
+            background: #fff;
+        }
+
+        #searchBar {
+            height: 30px;
+            background: #ccc;
+        }
+
+        #searchInput {
+            width: 100%;
+            height: 30px;
+            line-height: 30%;
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            border: none;
+            border-bottom: 1px solid #ccc;
+            padding: 0 5px;
+        }
+
+        #searchResults {
+            overflow: auto;
+            height: calc(100% - 30px);
+        }
+
+        .amap_lib_placeSearch,
+        .amap-ui-poi-picker-sugg-container {
+            border: none !important;
+        }
+
+            .amap_lib_placeSearch .poibox.highlight {
+                background-color: #CAE1FF;
+            }
+
+        .poi-more {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="outer-box">
+        <div id="container" class="map" tabindex="0"></div>
+        <ul id="lblList">
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 低于10000元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 10000 - 19999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 20000 - 29999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 30000 - 39999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 40000 - 49999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 50000 - 59999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 60000 - 69999元/平米
+            </li>
+            <li>
+                <span>&nbsp;&nbsp;&nbsp;</span> 大等于70000元/平米
+            </li>
+
+        </ul>
+        <div id="panel" class="scrollbar1">
+            <div id="searchBar">
+                <input id="searchInput" placeholder="地点搜索" />
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+    </div>
+    <script type="text/javascript" src='https://webapi.amap.com/maps?v=2.0&key=259c97b0e4e74d590717244ccc7d8619'></script>
+    <script src="https://webapi.amap.com/ui/1.1/main.js?v=1.1.1"></script>
+    <script type="text/javascript">
+        var map = new AMap.Map('container', {
+            zoom: 8
+        });
+        var colors = [
+            '#00FA9A',  // 0-10k
+            '#20B2AA',  // 10k-20k
+            '#FFD700',  // 20k-30k
+            '#FF8C00',  // 30k-40k
+            '#FF0000',  // 40k-50k
+            '#4B0082',  // 50k-60k
+            '#696969',  // 60k-70k
+            '#000000'   // >=70k
+        ];
+        for (var i = 0; i < document.getElementById('lblList').children.length; i++) {
+            document.getElementById('lblList').children[i].children[0].style.backgroundColor = colors[i];
+        }
+
+        AMapUI.loadUI(['misc/PoiPicker'], function (PoiPicker) {
+            var poiPicker = new PoiPicker({
+                input: 'searchInput',
+                placeSearchOptions: {
+                    map: map,
+                },
+                searchResultsContainer: 'searchResults'
+            });
+            poiPicker.on('poiPicked', function (poiResult) {
+                poiPicker.hideSearchResults();
+                var source = poiResult.source,
+                    poi = poiResult.item;
+                if (source !== 'search') {
+                    poiPicker.searchByKeyword(poi.name);
+                } else {
+                }
+            });
+            poiPicker.onCityReady(function () {
+            });
+        });
+
+        AMapUI.load(['ui/misc/PointSimplifier', 'lib/$'], function (PointSimplifier, $) {
+            if (!PointSimplifier.supportCanvas) {
+                alert('当前环境不支持 Canvas！');
+                return;
+            }
+            var pointSimplifierIns = new PointSimplifier({
+                zIndex: 115,
+                autoSetFitView: false,
+                map: map,
+                getPosition: function (item) {
+                    if (!item) {
+                        return null;
+                    }
+                    var parts = item.split(',');
+                    return [parseFloat(parts[3]), parseFloat(parts[1])];
+                },
+                getHoverTitle: function (dataItem, idx) {
+                    var parts = dataItem.split(',');
+                    var title = "标题: " + parts[5] + "</br>";
+                    title += "小区: " + parts[4] + "</br>";
+                    title += "概要: " + parts[0] + "</br>";
+                    title += "总价: " + parts[6] + "</br>";
+                    title += "每平米价格(元): " + parts[7];
+                    return title;
+                },
+                renderConstructor: PointSimplifier.Render.Canvas.GroupStyleRender,
+                renderOptions: {
+                    getGroupId: function (item, idx) {
+                        var parts = item.split(',');
+                        return Math.min(parseInt(parseFloat(parts[7]) / 10000), 7);
+                    },
+                    groupStyleOptions: function (gid) {
+                        var size = 8;
+                        return {
+                            drawPositionPoint: true,
+                            pointStyle: {
+                                content: "rect",
+                                fillStyle: "blue",
+                                width: size + 2,
+                                height: size + 2
+                            },
+                            pointHoverStyle: {
+                                content: "rect",
+                                fillStyle: "red",
+                                width: size + 5,
+                                height: size + 5
+                            },
+                            pointPositionStyle: {
+                                content: "rect",
+                                fillStyle: colors[gid % colors.length],
+                                width: size,
+                                height: size
+                            },
+                            pointHardcoreStyle: {
+                                width: size,
+                                height: size
+                            }
+                        };
+                    }
+                }
+            });
+            $('<div id="loadingTip">加载数据，请稍候...</div>').appendTo(document.body);
+            $.get('./house', function (csv) {
+                var data = csv.split('\n');
+                data.splice(0, 1);
+                pointSimplifierIns.setData(data);
+                pointSimplifierIns.on('pointClick', function (e, record) {
+                    var parts = record.data.split(',');
+                    window.open(parts[2]);
+                });
+                $('#loadingTip').remove();
+            });
+            /*
+            map.on('click', function (e) {
+                var pos = e.lnglat;
+                var posstr = pos.toString().replace(/\./g, "").replace(/,/g, "");
+                var marker = new AMap.Marker({
+                    map: map,
+                    position: pos
+                });
+                var editWindow = new AMap.InfoWindow({
+                    anchor: 'middle-left',
+                    content:
+                        '<div padding="0px"><form id="' + posstr + '">' + 
+                        '<input type="hidden" value="' + pos.getLng() + '" name="lng" />' + 
+                        '<input type="hidden" value="' + pos.getLat() + '" name="lat" />' + 
+                        '楼层：</br><input type="radio" value="1" id="floor" name="floor" checked="checked" />高' + 
+                        '<input type="radio" value="2" name="floor" />中' +
+                        '<input type="radio" value="3" name="floor" />低' +
+                        '<input type="radio" value="4" name="floor" />顶' +
+                        '<input type="radio" value="5" name="floor" />底<hr>' +
+                        '装修：</br><input type="radio" value="1" id="deco" name="deco" checked="checked" />毛坯' +
+                        '<input type="radio" value="2" name="deco" />简装' +
+                        '<input type="radio" value="3" name="deco" />精装<hr>' +
+                        '楼栋类型：</br><input type="radio" value="1" id="btype" name="btype" checked="checked" />塔楼' +
+                        '<input type="radio" value="2" name="btype" />板楼' +
+                        '<input type="radio" value="3" name="btype" />板塔结合' +
+                        '<input type="radio" value="4" name="btype" />平房<hr>' +
+                        '总楼层数：</br><input type="number" value="10" name="totalfloor" /><hr>' +
+                        '户型：</br><input style="width: 50px;" type="number" value="1" name="nRoom" />室<input style="width: 50px;" type="number" value="1" name="nHall" />厅<hr>' +
+                        '面积：</br><input type="text" value="50" name="square" />平方米<hr>' +
+                        '门窗朝向：</br><input type="checkbox" value="1" name="face" />东' +
+                        '<input type="checkbox" value="2" name="face" />南' +
+                        '<input type="checkbox" value="4" name="face" />西' +
+                        '<input type="checkbox" value="8" name="face" />北</br>' +
+                        '<input type="checkbox" value="16" name="face" />东北' +
+                        '<input type="checkbox" value="32" name="face" />西北' +
+                        '<input type="checkbox" value="64" name="face" />东南' +
+                        '<input type="checkbox" value="128" name="face" />西南<hr>' +
+                        '<input type="button" value="估价" /><hr>' +
+                        '估计价格：<input type="text" disabled="disabled" value="" />平方米/元' +
+                        '</form></div>'
+                });
+                marker.on('click', function () {
+                    editWindow.open(map, pos);
+                });
+                editWindow.open(map, pos);
+                $("#" + posstr).find("input[type='button']").bind('click', function () {
+                    $.get('./pvalue', $("#" + posstr).serialize(), function (data) {
+                        $("#" + posstr).children()[43].value = data;
+                    });
+                });
+            });
+            */
+        });
+    </script>
+</body>
+
+</html>
